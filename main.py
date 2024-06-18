@@ -8,17 +8,49 @@ import time as tm
 from itertools import groupby
 from datetime import datetime, timedelta, time
 import pandas as pd
+import random
 from urllib.parse import quote
 from langdetect import detect
 from langdetect.lang_detect_exception import LangDetectException
 
+
+def get_ip_info(proxies=None):
+    try:
+        response = requests.get('https://httpbin.org/ip', proxies=proxies)
+        ip = response.json()['origin']
+        print(f"Current IP Address: {ip}")
+        
+        response = requests.get(f'https://ipinfo.io/{ip}/json', proxies=proxies)
+        location_data = response.json()
+        
+        print("Location Information:")
+        print(json.dumps(location_data, indent=4))
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+     
 
 def load_config(file_name):
     # Load the config file
     with open(file_name) as f:
         return json.load(f)
 
-def get_with_retry(url, config, retries=3, delay=1):
+# def get_with_retry(url, config, retries=3, delay=1): #Original Method
+#     # Get the URL with retries and delay
+#     for i in range(retries):
+#         try:
+#             if len(config['proxies']) > 0:
+#                 r = requests.get(url, headers=config['headers'], proxies=config['proxies'], timeout=5)
+#             else:
+#                 r = requests.get(url, headers=config['headers'], timeout=5)
+#             return BeautifulSoup(r.content, 'html.parser')
+#         except requests.exceptions.Timeout:
+#             print(f"Timeout occurred for URL: {url}, retrying in {delay}s...")
+#             tm.sleep(delay)
+#         except Exception as e:
+#             print(f"An error occurred while retrieving the URL: {url}, error: {e}")
+#     return None
+
+def get_with_retry(url, config, retries=3): #Original Method modified (Random Delay)
     # Get the URL with retries and delay
     for i in range(retries):
         try:
@@ -27,12 +59,65 @@ def get_with_retry(url, config, retries=3, delay=1):
             else:
                 r = requests.get(url, headers=config['headers'], timeout=5)
             return BeautifulSoup(r.content, 'html.parser')
+       
         except requests.exceptions.Timeout:
-            print(f"Timeout occurred for URL: {url}, retrying in {delay}s...")
-            tm.sleep(delay)
+
+        # Implementing delay between retries
+            random_delay = delay + random.uniform(0, 1)
+            print(f"Delaying next request by {random_delay:.2f} seconds...")
+            tm.sleep(random_delay)
+
         except Exception as e:
             print(f"An error occurred while retrieving the URL: {url}, error: {e}")
     return None
+
+
+
+# def get_with_retry(url, config, retries=3, delay=1): # use proxy by chatgpt but didn;t work (maybe becuase free proxy)
+#     # Get the URL with retries and delay
+#     for i in range(retries):
+#         try:
+#             if 'proxies' in config and config['proxies']:
+#                 proxies = config['proxies']
+#             else:
+#                 proxies = None
+
+#             if 'headers' in config and config['headers']:
+#                 headers = config['headers']
+#             else:
+#                 headers = {}
+
+#             r = requests.get(url, headers=headers, proxies=proxies, timeout=5)
+#             return BeautifulSoup(r.content, 'html.parser')
+#         except requests.exceptions.Timeout:
+#             print(f"Timeout occurred for URL: {url}, retrying in {delay}s...")
+#             tm.sleep(delay)
+#         except Exception as e:
+#             print(f"An error occurred while retrieving the URL: {url}, error: {e}")
+#     return None
+
+# def get_with_retry(url, config, retries=3, delay=1):  #random timeout (by chatgpt)
+#     for i in range(retries):
+#         try:
+#             proxies = config.get('proxies', None)
+#             headers = config.get('headers', {})
+
+#             r = requests.get(url, headers=headers, proxies=proxies, timeout=5)
+#             return BeautifulSoup(r.content, 'html.parser')
+#         except requests.exceptions.Timeout:
+#             print(f"Timeout occurred for URL: {url}, retrying in {delay}s...")
+#             tm.sleep(delay)
+#         except Exception as e:
+#             print(f"An error occurred while retrieving the URL: {url}, error: {e}")
+
+#         # Implementing delay between retries
+#         random_delay = delay + random.uniform(0, 1)
+#         print(f"Delaying next request by {random_delay:.2f} seconds...")
+#         tm.sleep(random_delay)
+
+#     return None
+
+
 
 def transform(soup):
     # Parsing the job card info (title, company, location, date, job_url) from the beautiful soup object
@@ -327,8 +412,20 @@ def main(config_file):
 
 
 if __name__ == "__main__":
+
+    get_ip_info()
+    print("--------------------------------------")
+    print("--------------------------------------")
+    print()
+    print()
+
     config_file = 'config.json'  # default config file
     if len(sys.argv) == 2:
         config_file = sys.argv[1]
         
     main(config_file)
+
+
+
+#Note: always use vpn, to avoid getting your origninal IP getting banned (you may not be be able to replace)
+#Use timeouts & vpn, instead of proxies (really expensive at least 50$ per month)
